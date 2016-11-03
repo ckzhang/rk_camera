@@ -1,2 +1,12 @@
 cd CameraHal
 make
+cp build/lib/libcam_hal.so /lib/
+cp build/bin/camHalTest.bin /usr/local/bin
+cp build/bin/dumpsys /usr/local/bin
+
+others:
+
+cp xml/cam_default.xml /etc/cam_iq
+cp xml/capcmd.xml /tmp
+cp ext_lib/libion.so /lib/
+

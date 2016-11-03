@@ -63,13 +63,19 @@ static int get_supported_format(struct sp_plane *plane, uint32_t *format)
 struct sp_dev *create_sp_dev(void)
 {
 	struct sp_dev *dev;
-	int ret, fd, i, j;
+	int ret, fd, i, j, ctrl_fd;
 	drmModeRes *r = NULL;
 	drmModePlaneRes *pr = NULL;
 
 	fd = open("/dev/dri/card0", O_RDWR);
 	if (fd < 0) {
 		printf("failed to open card0\n");
+		return NULL;
+	}
+
+	ctrl_fd = open("/dev/dri/controlD64", O_RDWR);
+	if (ctrl_fd < 0) {
+		printf("could not open drm controller\n");
 		return NULL;
 	}
 
@@ -80,6 +86,7 @@ struct sp_dev *create_sp_dev(void)
 	}
 
 	dev->fd = fd;
+	dev->ctrl_fd = ctrl_fd;
 
 #if 0
 	ret = drmSetClientCap(dev->fd, DRM_CLIENT_CAP_ATOMIC, 1);
@@ -87,12 +94,13 @@ struct sp_dev *create_sp_dev(void)
 		printf("failed to set client cap atomic\n");
 		goto err;
 	}
+#endif
+
 	ret = drmSetClientCap(dev->fd, DRM_CLIENT_CAP_UNIVERSAL_PLANES, 1);
 	if (ret) {
 		printf("failed to set client cap\n");
 		goto err;
 	}
-#endif
 
 	r = drmModeGetResources(dev->fd);
 	if (!r) {
@@ -292,6 +300,7 @@ void destroy_sp_dev(struct sp_dev *dev)
 		free(dev->connectors);
 	}
 
+	close(dev->ctrl_fd);
 	close(dev->fd);
 	free(dev);
 }

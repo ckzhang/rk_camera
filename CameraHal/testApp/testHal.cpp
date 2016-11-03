@@ -98,16 +98,16 @@ public:
 		{
 			SHOWPERFORMACEFPS(CambufNotifierImp);
 			/* increase used count */
-			spCamBuf->incUsedCnt();	
+			spCamBuf->incUsedCnt();
 
 			//test get metadata
 			struct HAL_Buffer_MetaData* metaData= spCamBuf->getMetaData();
 			if ((metaData) && (metaData->metedata_drv) ){
 					//ALOGD("get meta data success!");
 					#if 0
-					struct v4l2_buffer_metadata_s* v4l2Meta = 
+					struct v4l2_buffer_metadata_s* v4l2Meta =
 						(struct v4l2_buffer_metadata_s*)metaData->metedata_drv;
-					struct cifisp_isp_metadata* ispMetaData = 
+					struct cifisp_isp_metadata* ispMetaData =
 						(struct cifisp_isp_metadata*)v4l2Meta->isp;
 					if (ispMetaData) {
 							ALOGD("sensor exposure time & gain:%d,%d",
@@ -136,18 +136,18 @@ public:
 						);
 			#endif
 
-			#ifdef USE_DRM_DISPLAY	
+			#ifdef USE_DRM_DISPLAY
 			drmDspFrame(spCamBuf->getWidth(),
                                     spCamBuf->getHeight(),
                                     //(int)(spCamBuf->getVirtAddr()),
-		    (short)(spCamBuf->getFd()),
+		    						(short)(spCamBuf->getFd()),
                                      DRM_FORMAT_NV12);
 			#endif
 			spCamBuf->decUsedCnt();
 		}
 		return true;
 	}
-	
+
 };
 
 
@@ -211,13 +211,13 @@ USECASE_DMAMPSP:
 			for (int i = 0;i < 4;i++) {
 				shared_ptr<CameraBuffer> buffer;
 				buffer = bufAlloc->alloc(RK_HAL_FMT_STRING::hal_fmt_map_to_str(frmFmt.frmFmt)
-					, (frmFmt.frmSize.width), (frmFmt.frmSize.height) 
+					, (frmFmt.frmSize.width), (frmFmt.frmSize.height)
 					, 0,bufOwener);
 				if (buffer.get())
 					bufPool.push_back(buffer);
 				else
-					ALOGE("alloc buffer failed.....");	
-				
+					ALOGE("alloc buffer failed.....");
+
 			}
 			//TODO: fill buffers
 			//get mp and sp,then set input as DMA
@@ -290,7 +290,7 @@ USECASE_DMAMPSP:
 				delete mSpBufNotifer;
 				spath->stop();
 				spath->releaseBuffers();
-				
+
 				ALOGD("stop mp path");
 				mpath->removeBufferNotifer(mMpBufNotifer);
 				delete mMpBufNotifer;
@@ -308,7 +308,7 @@ USECASE_DMAMPSP:
 			bufPool.clear();
 		#endif
 			ALOGD("dma path test end ......");
-			goto USECASE_END;	
+			goto USECASE_END;
 		}
 		}
 USECASE_CAMSP:
@@ -344,10 +344,10 @@ USECASE_CAMSP:
 				delete mBufNotifer;
 				spath->stop();
 				spath->releaseBuffers();
-			} else 
+			} else
 				ALOGE("sp prepare faild!");
 		#endif
-			
+
 		}
 		ALOGD("sp test complete........");
 		goto USECASE_END;
@@ -394,7 +394,7 @@ USECASE_CAMMPSP:
 		if (mpath.get() && spath.get()) {
 			shared_ptr<IonCameraBufferAllocator> bufAlloc(new IonCameraBufferAllocator());
 			frmFmt.frmSize.width = 1920;
-			frmFmt.frmSize.height = 1080;	
+			frmFmt.frmSize.height = 1080;
 			bool ret = mpath->prepare(frmFmt,4,*(bufAlloc.get()),false,0);
 			if (ret == true ) {
 				//mpath->start();
@@ -451,13 +451,13 @@ static void testTunningClass()
 			if (tunningInstance->start()) {
 				//getchar to stop
 				LOGD("press any key to stop tuning:");
-				getchar();	
+				getchar();
 				tunningInstance->stop();
 			}
 		 }
-	} 
-		
-		
+	}
+
+
 #endif
 	//deinit HW
 	ALOGD("deinit ISP dev......");
@@ -483,16 +483,16 @@ void testCifDev(int videoDevNum) {
 					 .fps = 30,
 			 };
 			 frm_info_t outFmt;
-			 
+
 			testCifDev->tryFormat(frmFmt, outFmt);
-			 
+
 			 NewCameraBufferReadyNotifier * mMpBufNotifer= new CambufNotifierImp();
 			 mpath->addBufferNotifier(mMpBufNotifer);
 			 if(mpath->prepare(outFmt,4,*(bufAlloc.get()),false,0)) {
 				if (mpath->start()) {
 					//getchar to stop
 					LOGD("press any key to stop tuning:");
-					getchar();	
+					getchar();
 					mpath->removeBufferNotifer(mMpBufNotifer);
 					delete mMpBufNotifer;
 					mpath->stop();
@@ -518,7 +518,7 @@ int main( int argc, const char* argv[])
 	#ifdef USE_DRM_DISPLAY
  	if (initDrmDsp() < 0)
 		ALOGD("DRM disp init failed !");
-	#endif	
+	#endif
 	if (argc > 1) {
 		int videoIndex = atoi(argv[1]);
 		ALOGD("video index is %d",videoIndex);
@@ -532,9 +532,8 @@ int main( int argc, const char* argv[])
 	rk_fb_close(&gFb);
 	#endif
 	#ifdef USE_DRM_DISPLAY
-	deInitDrmDsp();	
+	deInitDrmDsp();
 	#endif
 	ALOGD("tests end !\n");
 	return 0;
 }
-

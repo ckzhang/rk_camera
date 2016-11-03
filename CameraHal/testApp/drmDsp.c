@@ -1,21 +1,21 @@
-#include <stdio.h>  
+#include <stdio.h>
 #include <linux/fb.h>
 #include <fcntl.h>
-#include <unistd.h>  
-#include <stdlib.h>  
-#include <sys/mman.h> 
+#include <unistd.h>
+#include <stdlib.h>
+#include <sys/mman.h>
 #include <drm_fourcc.h>
 #include <string.h>
 
 #include "./drmDsp/dev.h"
 #include "./drmDsp/bo.h"
 #include "./drmDsp/modeset.h"
-#include "xf86drm.h"                                                            
+#include "xf86drm.h"
 #include "xf86drmMode.h"
 #include "drmDsp.h"
 
 struct drmDsp {
-	struct fb_var_screeninfo vinfo;  
+	struct fb_var_screeninfo vinfo;
 	unsigned long screensize;
 	char *fbp;
 	struct sp_dev *dev;
@@ -29,37 +29,89 @@ struct drmDsp {
 
 int initDrmDsp()
 {
-	int ret = 0,i = 0;
+	int ret = 0,i = 0, j = 0;
 	struct drmDsp *pDrmDsp = &gDrmDsp;
 
 	memset(pDrmDsp,0,sizeof(struct drmDsp));
-	
+
 	pDrmDsp->dev = create_sp_dev();
 	if (!pDrmDsp->dev) {
 		printf("Failed to create sp_dev\n");
 		return -1;
 	}
-
+#if 0
 	ret = initialize_screens(pDrmDsp->dev);
 	if (ret) {
 		printf("Failed to initialize screens\n");
 		return ret;
 	}
+#endif
+
 	pDrmDsp->plane = calloc(pDrmDsp->dev->num_planes, sizeof(struct sp_plane *));
 	if (!pDrmDsp->plane) {
 		printf("Failed to allocate plane array\n");
 		return -1;
 	}
 
-	pDrmDsp->test_crtc = &pDrmDsp->dev->crtcs[0];
+#if 1
+	for (i = 0; i < pDrmDsp->dev->num_connectors; i++) {
+		if (pDrmDsp->dev->connectors[i]->connection == DRM_MODE_CONNECTED) {
+			/* it's connected, let's use this! */
+			break;
+		}
+	}
+	if (i == pDrmDsp->dev->num_connectors) {
+		printf("no connected connector!\n");
+		return -1;
+	}
+	/* find encoder: */
+	for (j = 0; j < pDrmDsp->dev->num_encoders; j++) {
+		if (pDrmDsp->dev->encoders[j]->encoder_id ==
+					pDrmDsp->dev->connectors[i]->encoder_id) {
+			break;
+		}
+	}
+	if (j == pDrmDsp->dev->num_encoders) {
+		printf("no encoder found!\n");
+		return -1;
+	}
+
+	for (i = 0; i < pDrmDsp->dev->num_crtcs; i++) {
+		if (pDrmDsp->dev->crtcs[i].crtc->crtc_id ==
+					pDrmDsp->dev->encoders[j]->crtc_id) {
+			break;
+		}
+	}
+	if (i == pDrmDsp->dev->num_crtcs) {
+		return -1;
+	}
+
+	pDrmDsp->test_crtc = &pDrmDsp->dev->crtcs[i];
+	pDrmDsp->num_test_planes = pDrmDsp->test_crtc->num_planes;
+
+	for (i = 0; i < pDrmDsp->test_crtc->num_planes; i++) {
+		pDrmDsp->plane[i] = get_sp_plane(pDrmDsp->dev, pDrmDsp->test_crtc);
+		if (is_supported_format(pDrmDsp->plane[i], DRM_FORMAT_NV12)) {
+			pDrmDsp->test_plane = pDrmDsp->plane[i];
+		}
+	}
+
+	if (!pDrmDsp->test_plane)
+		return -1;
+
+#else
+	/* force vop big */
+	pDrmDsp->test_crtc = &pDrmDsp->dev->crtcs[1];
 	pDrmDsp->num_test_planes = pDrmDsp->test_crtc->num_planes;
 	for (i = 0; i < pDrmDsp->test_crtc->num_planes; i++) {
 		pDrmDsp->plane[i] = get_sp_plane(pDrmDsp->dev, pDrmDsp->test_crtc);
 		if (is_supported_format(pDrmDsp->plane[i], DRM_FORMAT_NV12))
 			pDrmDsp->test_plane = pDrmDsp->plane[i];
 	}
+
 	if (!pDrmDsp->test_plane)
 		return -1;
+#endif
 }
 
 void deInitDrmDsp()
@@ -74,120 +126,50 @@ void deInitDrmDsp()
 }
 int drmDspFrame(int width,int height,int dmaFd,int fmt)
 {
-	int ret;
-	struct drm_mode_create_dumb cd;
-	struct sp_bo *bo;
 	struct drmDsp *pDrmDsp = &gDrmDsp;
 	int wAlign16 = ((width + 15) & (~15));
 	int hAlign16 = ((height + 15) & (~15));
 	int frameSize = wAlign16 * hAlign16 * 3 / 2;
 	int dmafd = dmaFd;
 	uint32_t handles[4], pitches[4], offsets[4];
+	uint32_t handle = 0;
+	int fb_id, ret;
 
 	if (DRM_FORMAT_NV12 != fmt)
 		return -1;
 
-	//create bo
-#if 1
-	if (!pDrmDsp->bo[0]) {
-		 printf("%s:bo widthxheight:%dx%d\n",__func__,wAlign16,hAlign16);       
-		 pDrmDsp->bo[0] =create_sp_bo(pDrmDsp->dev,wAlign16,hAlign16,
-                	16, 32, DRM_FORMAT_NV12, 0);
-		 pDrmDsp->bo[1] =create_sp_bo(pDrmDsp->dev,wAlign16,hAlign16,
-                        16, 32, DRM_FORMAT_NV12 , 0);
-		if (!pDrmDsp->bo[0] || !pDrmDsp->bo[1]) {
-			printf("%s:create bo failed ! \n",__func__);
-			return -1;
-		}
-		pDrmDsp->nextbo = pDrmDsp->bo[0];
-	}
-
-	if (!pDrmDsp->nextbo) {
-		printf("%s:no available bo ! \n",__func__);
-		return -1;
-	}
-
-	bo = pDrmDsp->nextbo;	
-#else
-	bo = create_sp_bo(pDrmDsp->dev,wAlign16,hAlign16,
-                        16, 32, DRM_FORMAT_NV12, 0);
-	if (!bo)
-		printf("%s:create bo failed ! \n",__func__);
-#endif
-	
-	handles[0] = bo->handle;
-	pitches[0] = wAlign16;
-	offsets[0] = 0;
-	handles[1] = bo->handle;
-	pitches[1] = wAlign16;
-	offsets[1] = width*height;//wAlign16 * hAlign16;
-
-#if 1
-	uint32_t handle = 0;
-	ret = drmPrimeFDToHandle(bo->dev->fd, dmaFd, &handle);
+	ret = drmPrimeFDToHandle(pDrmDsp->dev->fd, dmaFd, &handle);
 	if (ret < 0) {
 		printf("Could not get handle\n");
 	}
+	pitches[0] = wAlign16;
+	offsets[0] = 0;
 	handles[0] = handle;
+	pitches[1] = wAlign16;
+	offsets[1] = width*height;
 	handles[1] = handle;
 
-	ret = drmModeAddFB2(bo->dev->fd, bo->width, bo->height,
-			bo->format, handles, pitches, offsets,
-			&bo->fb_id, 0);
-#else
-	//copy src data to bo
-	memcpy(bo->map_addr,(void*)dmaFd,wAlign16*hAlign16*3/2);
-
-	ret = drmModeAddFB2(bo->dev->fd, bo->width, bo->height,
-			bo->format, handles, pitches, offsets,
-			&bo->fb_id, bo->flags);
-#endif
+	ret = drmModeAddFB2(pDrmDsp->dev->fd, wAlign16, hAlign16,
+			DRM_FORMAT_NV12, handles, pitches, offsets,
+			&fb_id, 0);
 
 	if (ret) {
 		printf("%s:failed to create fb ret=%d\n", __func__,ret);
-		printf("fd:%d ,wxh:%dx%d,format:%d,handles:%d,%d,pictches:%d,%d,offsets:%d,%d,fb_id:%d,flags:%d \n",
-			bo->dev->fd, bo->width, bo->height,bo->format,
+		printf("fd:%d ,wxh:%dx%d,format:%d,handles:%d,%d,pictches:%d,%d,offsets:%d,%d,fb_id:%d \n",
+			pDrmDsp->dev->fd, wAlign16, hAlign16,DRM_FORMAT_NV12,
 			handles[0],handles[1],pitches[0],pitches[1],
-			offsets[0],offsets[1],bo->fb_id,bo->flags);
+			offsets[0],offsets[1],fb_id);
 		return ret;
 	}
 
-	ret = drmModeSetPlane(pDrmDsp->dev->fd, pDrmDsp->test_plane->plane->plane_id,
-		pDrmDsp->test_crtc->crtc->crtc_id, bo->fb_id, 0, 0, 0,
+	ret = drmModeSetPlane(pDrmDsp->dev->ctrl_fd, pDrmDsp->test_plane->plane->plane_id,
+		pDrmDsp->test_crtc->crtc->crtc_id, fb_id, 0, 0, 0,
 		pDrmDsp->test_crtc->crtc->mode.hdisplay,
 		pDrmDsp->test_crtc->crtc->mode.vdisplay,
 		0, 0, width << 16, height << 16);
+
 	if (ret) {
 		printf("failed to set plane to crtc ret=%d\n", ret);
 		return ret;
 	}
-//	free_sp_bo(bo);
-#if 0
-	if (pDrmDsp->test_plane->bo) {
-		if (pDrmDsp->test_plane->bo->fb_id) {
-			ret = drmModeRmFB(pDrmDsp->dev->fd, pDrmDsp->test_plane->bo->fb_id);
-			if (ret)
-				printf("Failed to rmfb ret=%d!\n", ret);
-		}
-		if (pDrmDsp->test_plane->bo->handle) {
-			struct drm_gem_close req = {
-				.handle = pDrmDsp->test_plane->bo->handle,
-			};
-	
-			drmIoctl(bo->dev->fd, DRM_IOCTL_GEM_CLOSE, &req);
-			printf("%s:close bo success!\n",__func__);
-		}
-
-		if (!pDrmDsp->nextbo)
-			free_sp_bo(pDrmDsp->test_plane->bo);
-	}
-	pDrmDsp->test_plane->bo = bo; //last po
-#endif
-#if 1
-	//switch bo
-	if (pDrmDsp->nextbo == pDrmDsp->bo[0])
-		pDrmDsp->nextbo = pDrmDsp->bo[1];
-	else
-		pDrmDsp->nextbo = pDrmDsp->bo[0];
-#endif
 }

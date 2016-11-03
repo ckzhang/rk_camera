@@ -37,6 +37,7 @@ struct sp_crtc {
 
 struct sp_dev {
 	int fd;
+	int ctrl_fd;
 
 	int num_connectors;
 	drmModeConnectorPtr *connectors;
