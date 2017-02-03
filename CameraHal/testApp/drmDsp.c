@@ -27,7 +27,7 @@ struct drmDsp {
 	struct sp_bo *nextbo;
 }gDrmDsp;
 
-int initDrmDsp()
+int initDrmDsp(int crtcId)
 {
 	int ret = 0,i = 0, j = 0;
 	struct drmDsp *pDrmDsp = &gDrmDsp;
@@ -101,7 +101,7 @@ int initDrmDsp()
 
 #else
 	/* force vop big */
-	pDrmDsp->test_crtc = &pDrmDsp->dev->crtcs[1];
+	pDrmDsp->test_crtc = &pDrmDsp->dev->crtcs[crtcId];
 	pDrmDsp->num_test_planes = pDrmDsp->test_crtc->num_planes;
 	for (i = 0; i < pDrmDsp->test_crtc->num_planes; i++) {
 		pDrmDsp->plane[i] = get_sp_plane(pDrmDsp->dev, pDrmDsp->test_crtc);

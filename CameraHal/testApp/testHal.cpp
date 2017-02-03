@@ -511,23 +511,28 @@ void testCifDev(int videoDevNum) {
 int main( int argc, const char* argv[])
 {
 	ALOGD("tests start !\n");
+        int videoIndex = 1; //1 for HDMI;
 	#ifdef USE_RK_DISPLAY
 	rk_fb_open(&gFb);
 	#endif
 
 	#ifdef USE_DRM_DISPLAY
- 	if (initDrmDsp() < 0)
+	if (argc > 1) {
+		videoIndex = atoi(argv[1]);
+		ALOGD("video index is %d",videoIndex);
+        }
+ 	if (initDrmDsp(videoIndex) < 0)
 		ALOGD("DRM disp init failed !");
 	#endif
-	if (argc > 1) {
-		int videoIndex = atoi(argv[1]);
-		ALOGD("video index is %d",videoIndex);
-		testCifDev(videoIndex);
-	} else {
+//	if (argc > 1) {
+//		int videoIndex = atoi(argv[1]);
+//		ALOGD("video index is %d",videoIndex);
+//		testCifDev(videoIndex);
+//	} else {
 		while (1)
 			testSofiaIsp(&gSofiaTestPara);
 		//testTunningClass();
-	}
+//	}
 	#ifdef USE_RK_DISPLAY
 	rk_fb_close(&gFb);
 	#endif
