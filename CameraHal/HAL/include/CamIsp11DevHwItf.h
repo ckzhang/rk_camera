@@ -3,12 +3,11 @@
 #include "CamHwItf.h"
 #include "CamIspCtrItf.h"
 using namespace std;
-
 #define CAMERA_DEVICE_NAME              "/dev/video"
-#define CAMERA_CAPTURE_DEV_NAME   "/dev/video4"
-#define CAMERA_OVERLAY_DEV_NAME   "/dev/video2"
-#define CAMERA_DMA_DEV_NAME   "/dev/video5"
-#define CAMERA_ISP_DEV_NAME   "/dev/video3"
+#define CAMERA_CAPTURE_DEV_NAME   "/dev/video2"
+#define CAMERA_OVERLAY_DEV_NAME   "/dev/video0"
+#define CAMERA_DMA_DEV_NAME   "/dev/video3"
+#define CAMERA_ISP_DEV_NAME   "/dev/video1"
 #define CAMERA_IQ_DIR			"/etc/cam_iq/"
 #define CAMERA_IQ_DEFAULT	"/etc/cam_iq/cam_default.xml"
 
