@@ -60,6 +60,13 @@ int initDrmDsp(int crtcId)
 			break;
 		}
 	}
+
+	if (i != crtcId && crtcId >= 0 && crtcId < pDrmDsp->dev->num_connectors) {
+		if (pDrmDsp->dev->connectors[crtcId]->connection == DRM_MODE_CONNECTED) {
+			i = crtcId;
+		}
+	}
+
 	if (i == pDrmDsp->dev->num_connectors) {
 		printf("no connected connector!\n");
 		return -1;
